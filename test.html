@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Trắng Tương Tác</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .toolbar {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap; /* Cho phép xuống dòng nếu không đủ chỗ */
+            gap: 10px;
+        }
+
+        .toolbar button {
+            padding: 5px 10px;
+            border: 1px solid #999;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        .toolbar button.active {
+            background-color: #a0a0a0;
+            font-weight: bold;
+            border-color: #555;
+        }
+        .toolbar button:disabled { /* Định dạng cho nút bị vô hiệu hóa */
+             cursor: not-allowed;
+             opacity: 0.6;
+        }
+
+        #whiteboard-container {
+            border: 2px solid #000;
+            box-shadow: 3px 3px 5px rgba(0,0,0,0.2);
+            line-height: 0;
+        }
+
+        #drawing-canvas {
+            display: block;
+            background-color: #ffffff;
+            cursor: crosshair;
+        }
+        #drawing-canvas.text-mode {
+             cursor: text;
+        }
+        #drawing-canvas.eraser-mode {
+             cursor: crosshair;
+        }
+    </style>
+    </head>
+<body>
+
+    <h1>Bảng Trắng Tương Tác</h1>
+
+    <div class="toolbar">
+        <button id="pen-tool-btn" class="active">Bút vẽ</button>
+        <button id="eraser-tool-btn">Tẩy</button>
+        <button id="text-tool-btn">Chữ T</button>
+        <button id="undo-btn" disabled>Hoàn tác</button> <button id="clear-btn">Xóa hết</button> </div>
+
+    <div id="whiteboard-container">
+        <canvas id="drawing-canvas"></canvas>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            const canvas = document.getElementById('drawing-canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Thêm willReadFrequently để tối ưu hiệu năng getImageData
+            const container = document.getElementById('whiteboard-container');
+            const penBtn = document.getElementById('pen-tool-btn');
+            const eraserBtn = document.getElementById('eraser-tool-btn');
+            const textBtn = document.getElementById('text-tool-btn');
+            const undoBtn = document.getElementById('undo-btn'); // Tham chiếu nút Undo
+            const clearBtn = document.getElementById('clear-btn'); // Tham chiếu nút Clear
+
+            // --- Cài đặt kích thước ---
+            canvas.width = 800;
+            canvas.height = 600;
+            container.style.width = `${canvas.width}px`;
+            container.style.height = `${canvas.height}px`;
+
+            // --- Biến trạng thái ---
+            let currentMode = 'draw';
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            let currentColor = '#000000';
+            let currentLineWidth = 5;
+            let currentFont = '16px sans-serif';
+            const eraserColor = '#ffffff';
+
+            // --- Undo/History ---
+            let historyStack = []; // Ngăn xếp lưu trạng thái ImageData
+            const MAX_HISTORY_STATES = 20; // Giới hạn số bước undo
+
+            // --- Lưu trạng thái vào history ---
+            function saveHistoryState() {
+                // Xóa các trạng thái "redo" nếu có (khi vẽ mới sau khi undo)
+                // Hiện tại chưa có redo nên bỏ qua bước này
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                historyStack.push(imageData);
+
+                // Giới hạn kích thước history
+                if (historyStack.length > MAX_HISTORY_STATES) {
+                    historyStack.shift(); // Xóa trạng thái cũ nhất
+                }
+                 updateUndoButtonState(); // Cập nhật trạng thái nút Undo
+                console.log("Đã lưu trạng thái, history size:", historyStack.length);
+            }
+
+            // --- Hoàn tác hành động cuối ---
+            function undoLastAction() {
+                if (historyStack.length <= 1) { // Chỉ còn trạng thái ban đầu
+                    console.log("Không có gì để hoàn tác.");
+                    return;
+                }
+
+                historyStack.pop(); // Xóa trạng thái hiện tại
+                const previousImageData = historyStack[historyStack.length - 1]; // Lấy trạng thái trước đó
+
+                // Vẽ lại trạng thái trước đó
+                ctx.putImageData(previousImageData, 0, 0);
+                updateUndoButtonState(); // Cập nhật trạng thái nút Undo
+                console.log("Đã hoàn tác, history size:", historyStack.length);
+            }
+             // --- Cập nhật trạng thái enable/disable của nút Undo ---
+            function updateUndoButtonState() {
+                 undoBtn.disabled = (historyStack.length <= 1);
+            }
+
+
+            // --- Xóa toàn bộ canvas ---
+            function clearCanvas() {
+                if (confirm("Bạn có chắc muốn xóa toàn bộ nội dung bảng trắng?")) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    saveHistoryState(); // Lưu trạng thái trống vào history sau khi xóa
+                    console.log("Đã xóa toàn bộ bảng.");
+                }
+            }
+
+            // --- Hàm cập nhật trạng thái nút và con trỏ chuột ---
+            function updateToolUI() {
+                penBtn.classList.remove('active');
+                eraserBtn.classList.remove('active');
+                textBtn.classList.remove('active');
+                canvas.classList.remove('text-mode', 'eraser-mode');
+
+                if (currentMode === 'draw') {
+                    penBtn.classList.add('active');
+                    canvas.style.cursor = 'crosshair';
+                } else if (currentMode === 'eraser') {
+                    eraserBtn.classList.add('active');
+                    canvas.classList.add('eraser-mode');
+                     canvas.style.cursor = 'crosshair'; // Hoặc cursor khác cho tẩy
+                } else if (currentMode === 'text') {
+                    textBtn.classList.add('active');
+                    canvas.classList.add('text-mode');
+                    canvas.style.cursor = 'text';
+                }
+            }
+
+             // --- Gắn sự kiện cho các nút công cụ ---
+            penBtn.addEventListener('click', () => { currentMode = 'draw'; updateToolUI(); });
+            eraserBtn.addEventListener('click', () => { currentMode = 'eraser'; updateToolUI(); });
+            textBtn.addEventListener('click', () => { currentMode = 'text'; updateToolUI(); });
+            undoBtn.addEventListener('click', undoLastAction); // Gắn sự kiện cho nút Undo
+            clearBtn.addEventListener('click', clearCanvas);   // Gắn sự kiện cho nút Clear
+
+            // --- Hàm xử lý nhấn chuột chung ---
+            function handleMouseDown(e) {
+                if (currentMode === 'draw' || currentMode === 'eraser') {
+                    isDrawing = true;
+                    [lastX, lastY] = [e.offsetX, e.offsetY];
+                    drawDot(e.offsetX, e.offsetY); // Vẽ/Tẩy điểm bắt đầu
+                } else if (currentMode === 'text') {
+                    placeText(e); // Không lưu history ở đây, lưu sau khi đặt text xong
+                }
+            }
+             // --- Hàm vẽ một điểm ---
+            function drawDot(x, y) {
+                 ctx.beginPath();
+                 ctx.fillStyle = (currentMode === 'eraser') ? eraserColor : currentColor;
+                 ctx.arc(x, y, currentLineWidth / 2, 0, Math.PI * 2);
+                 ctx.fill();
+            }
+
+            // --- Hàm xử lý vẽ đường hoặc tẩy ---
+            function draw(e) {
+                if (!isDrawing) return;
+                 const strokeColor = (currentMode === 'eraser') ? eraserColor : currentColor;
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = currentLineWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
+
+            // --- Hàm xử lý thả chuột / di chuột ra ngoài ---
+            function stopDrawing() {
+                 if (isDrawing) { // Chỉ lưu history nếu thực sự đã vẽ/tẩy gì đó
+                      isDrawing = false;
+                      saveHistoryState(); // Lưu trạng thái SAU KHI vẽ/tẩy xong một nét
+                 }
+            }
+
+            // --- Hàm xử lý đặt chữ ---
+            function placeText(e) {
+                const text = prompt("Nhập văn bản:");
+                if (text) {
+                    ctx.fillStyle = currentColor;
+                    ctx.font = currentFont;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(text, e.offsetX, e.offsetY);
+                    saveHistoryState(); // Lưu trạng thái SAU KHI đặt chữ xong
+                    console.log(`Đã thêm chữ: "${text}" tại (${e.offsetX}, ${e.offsetY})`);
+                } else {
+                    console.log("Đã hủy thêm chữ.");
+                }
+            }
+
+            // --- Gắn các hàm xử lý vào sự kiện chuột trên canvas ---
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing); // Cũng nên lưu khi chuột ra ngoài
+
+            // --- Khởi tạo ---
+            updateToolUI(); // Cập nhật giao diện nút
+            saveHistoryState(); // Lưu trạng thái ban đầu (trống) vào history
+            console.log("Bảng vẽ với Undo/Clear đã sẵn sàng!");
+        });
+    </script>
+    </body>
+</html>
