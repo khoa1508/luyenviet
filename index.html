@@ -104,7 +104,7 @@
             let activeColorButton = null;
 
             // --- Undo/History ---
-            const MAX_HISTORY_STATES = 20; // *** ĐÃ DI CHUYỂN LÊN ĐÂY ***
+            const MAX_HISTORY_STATES = 20;
 
             // --- Quản lý các Canvas ---
             const canvasElements = document.querySelectorAll('canvas');
@@ -122,10 +122,7 @@
             // --- Khởi tạo từng Canvas ---
             canvasElements.forEach(canvasEl => {
                 const canvasId = canvasEl.id;
-                 if (!canvasId) { // Bỏ qua nếu canvas không có ID (ví dụ: canvas dùng bởi thư viện khác)
-                     console.warn("Tìm thấy canvas không có ID, bỏ qua.");
-                     return;
-                 }
+                 if (!canvasId) { console.warn("Tìm thấy canvas không có ID, bỏ qua."); return; }
                 const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
 
                 let canvasWidth, canvasHeight;
@@ -135,7 +132,7 @@
                     const studentSize = 200;
                     canvasWidth = studentSize; canvasHeight = studentSize;
                 } else {
-                     canvasWidth = 100; canvasHeight = 100; // Mặc định
+                     canvasWidth = 100; canvasHeight = 100;
                 }
                  canvasEl.width = canvasWidth;
                  canvasEl.height = canvasHeight;
@@ -145,9 +142,8 @@
                     lastX: 0, lastY: 0, historyStack: []
                 };
                 drawGrid(canvasId);
-                saveHistoryState(canvasId); // Gọi saveHistoryState sau khi MAX_HISTORY_STATES đã được khai báo
+                saveHistoryState(canvasId);
 
-                // Gắn Event Listeners
                 canvasEl.addEventListener('mousedown', handleInteractionStart);
                 canvasEl.addEventListener('mousemove', handleInteractionMove);
                 canvasEl.addEventListener('mouseup', handleInteractionEnd);
@@ -172,8 +168,53 @@
              function clearCanvasLocal(canvasId) { if (!canvases[canvasId]) return; const { ctx, element } = canvases[canvasId]; ctx.clearRect(0, 0, element.width, element.height); drawGrid(canvasId); canvases[canvasId].historyStack = []; saveHistoryState(canvasId); if (canvasId === 'teacher-canvas') updateUndoButtonState(); }
              function clearTeacherCanvasAndEmit() { const canvasId = 'teacher-canvas'; if (confirm(`Bạn có chắc muốn xóa nội dung ô ${canvasId}? Hành động này cũng sẽ xóa tất cả các ô khác.`)) { socket.emit('clear_action'); console.log("Yêu cầu xóa tất cả."); }}
 
-            // --- Lấy tọa độ chuẩn hóa (Cần e.target) ---
-            function getCoordinates(e) { let x, y; const targetCanvas = e.target; if (!targetCanvas || typeof targetCanvas.getBoundingClientRect !== 'function') { console.error("Lỗi lấy target canvas trong getCoordinates"); return { x: 0, y: 0 }; } const rect = targetCanvas.getBoundingClientRect(); if (e.touches && e.touches.length > 0) { x = e.touches[0].clientX - rect.left; y = e.touches[0].clientY - rect.top; } else if (e.changedTouches && e.changedTouches.length > 0) { x = e.changedTouches[0].clientX - rect.left; y = e.changedTouches[0].clientY - rect.top; } else { x = e.clientX - rect.left; y = e.clientY - rect.top; } return { x, y }; }
+            // --- Lấy tọa độ chuẩn hóa (ĐÃ CẬP NHẬT DÙNG pageX/Y) ---
+            function getCoordinates(e) {
+                let pageX, pageY;
+                const targetCanvas = e.target; // Canvas đã kích hoạt sự kiện
+
+                if (!targetCanvas || typeof targetCanvas.getBoundingClientRect !== 'function') {
+                    console.error("Lỗi lấy target canvas trong getCoordinates");
+                    return { x: 0, y: 0 }; // Trả về giá trị mặc định hoặc xử lý lỗi
+                }
+
+                // Ưu tiên lấy tọa độ từ sự kiện chạm
+                if (e.touches && e.touches.length > 0) {
+                    pageX = e.touches[0].pageX;
+                    pageY = e.touches[0].pageY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    // Dùng cho touchend/touchcancel
+                    pageX = e.changedTouches[0].pageX;
+                    pageY = e.changedTouches[0].pageY;
+                } else if (e.pageX !== undefined && e.pageY !== undefined) {
+                    // Sự kiện chuột
+                    pageX = e.pageX;
+                    pageY = e.pageY;
+                 } else if (e.clientX !== undefined && e.clientY !== undefined) {
+                     // Fallback dùng clientX/Y nếu không có pageX/Y (ít gặp)
+                     const rectForClientXY = targetCanvas.getBoundingClientRect();
+                     const scrollLeftForClientXY = window.pageXOffset || document.documentElement.scrollLeft;
+                     const scrollTopForClientXY = window.pageYOffset || document.documentElement.scrollTop;
+                     pageX = e.clientX + scrollLeftForClientXY;
+                     pageY = e.clientY + scrollTopForClientXY;
+                 } else {
+                    console.error("Không thể lấy tọa độ từ sự kiện", e);
+                    return {x: 0, y: 0}; // Không lấy được tọa độ
+                }
+
+                // Tính toán vị trí của canvas so với toàn bộ tài liệu
+                const rect = targetCanvas.getBoundingClientRect();
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const canvasLeft = rect.left + scrollLeft;
+                const canvasTop = rect.top + scrollTop;
+
+                // Tọa độ cuối cùng bên trong canvas
+                let x = pageX - canvasLeft;
+                let y = pageY - canvasTop;
+
+                return { x, y };
+            }
 
              // --- Vẽ/Tẩy/Chữ từ dữ liệu (cần ctx) ---
              function drawSegmentOnCtx(ctx, data) { const { x1, y1, x2, y2, color, width } = data; ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
