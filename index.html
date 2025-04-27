@@ -2,297 +2,212 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bảng Trắng Realtime</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Luyện Viết Chữ Hán Realtime</title>
     <style>
-        /* CSS giữ nguyên như phiên bản trước */
         body {
-            font-family: sans-serif; display: flex; flex-direction: column;
-            align-items: center; margin: 0; padding: 20px; background-color: #f0f0f0;
+            overscroll-behavior: none; touch-action: none; font-family: sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            margin: 0; padding: 10px; background-color: #f0f0f0;
         }
-        h1 { color: #333; }
+        h1 { color: #333; margin-top: 0; margin-bottom: 10px; }
+
         .toolbar {
-            margin-bottom: 15px; padding: 10px; background-color: #e0e0e0;
-            border-radius: 5px; display: flex; flex-wrap: wrap; gap: 10px;
+            width: 98%; max-width: 800px; margin-bottom: 10px; padding: 8px;
+            background-color: #e0e0e0; border-radius: 5px; display: flex;
+            flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center;
         }
-        .toolbar button {
-            padding: 5px 10px; border: 1px solid #999; border-radius: 3px;
-            cursor: pointer; background-color: #fff;
-        }
+        .toolbar button { padding: 6px 10px; border: 1px solid #999; border-radius: 3px; cursor: pointer; background-color: #fff; font-size: 14px; min-width: 40px; height: 30px; box-sizing: border-box; }
         .toolbar button.active { background-color: #a0a0a0; font-weight: bold; border-color: #555; }
         .toolbar button:disabled { cursor: not-allowed; opacity: 0.6; }
-        #whiteboard-container { border: 2px solid #000; box-shadow: 3px 3px 5px rgba(0,0,0,0.2); line-height: 0; }
-        #drawing-canvas { display: block; background-color: #ffffff; cursor: crosshair; }
-        #drawing-canvas.text-mode { cursor: text; }
-        #drawing-canvas.eraser-mode { cursor: crosshair; }
+        .color-btn { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 1px 1px 2px rgba(0,0,0,0.3); vertical-align: middle; }
+        .color-btn.active-color { border-color: #000000; transform: scale(1.1); box-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .toolbar .separator { border-left: 1px solid #bbb; height: 25px; margin: 0 5px; }
+
+        #canvas-area {
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 15px; width: 100%; max-width: 900px; margin-top: 10px;
+        }
+        #teacher-area { display: flex; flex-direction: column; align-items: center; margin-bottom: 10px; }
+        #teacher-area label { font-weight: bold; margin-bottom: 5px; }
+        #teacher-canvas { border: 2px solid #333; background-color: #fff; display: block; touch-action: none; }
+
+        #student-area {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px; width: 100%;
+        }
+        .student-canvas-wrapper { display: flex; flex-direction: column; align-items: center; }
+        .student-canvas-wrapper label { font-size: 0.9em; margin-bottom: 3px; }
+        .student-canvas {
+            border: 1px solid #999; background-color: #fff; display: block;
+            width: 100%; height: auto; aspect-ratio: 1 / 1; touch-action: none;
+        }
     </style>
     </head>
 <body>
 
-    <h1>Bảng Trắng Realtime</h1>
+    <h1>Luyện Viết Chữ Hán</h1>
 
     <div class="toolbar">
-        <button id="pen-tool-btn" class="active">Bút vẽ</button>
-        <button id="eraser-tool-btn">Tẩy</button>
-        <button id="text-tool-btn">Chữ T</button>
-        <button id="undo-btn" disabled>Hoàn tác (Local)</button> <button id="clear-btn">Xóa hết</button>
-        </div>
+        <button id="pen-tool-btn" class="active" title="Bút vẽ">✏️</button>
+        <button id="eraser-tool-btn" title="Tẩy">🧼</button>
+        <button id="text-tool-btn" title="Chữ T">T</button>
+        <div class="separator"></div>
+        <button class="color-btn" data-color="#000000" style="background-color: #000000;" title="Đen"></button>
+        <button class="color-btn" data-color="#FF0000" style="background-color: #FF0000;" title="Đỏ"></button>
+        <button class="color-btn" data-color="#0000FF" style="background-color: #0000FF;" title="Xanh dương"></button>
+        <button class="color-btn" data-color="#008000" style="background-color: #008000;" title="Xanh lá"></button>
+        <button class="color-btn" data-color="#FFFF00" style="background-color: #FFFF00;" title="Vàng"></button>
+        <button class="color-btn" data-color="#FFA500" style="background-color: #FFA500;" title="Cam"></button>
+        <div class="separator"></div>
+        <button id="undo-btn" disabled title="Hoàn tác (GV)">↩️</button> <button id="clear-btn" title="Xóa hết (GV)">🗑️</button> </div>
 
-    <div id="whiteboard-container">
-        <canvas id="drawing-canvas"></canvas>
+    <div id="canvas-area">
+        <div id="teacher-area">
+             <label>Giáo viên</label>
+             <canvas id="teacher-canvas"></canvas>
+        </div>
+        <div id="student-area">
+            <div class="student-canvas-wrapper"> <label>Học viên 1</label> <canvas id="student-canvas-1" class="student-canvas"></canvas> </div>
+            <div class="student-canvas-wrapper"> <label>Học viên 2</label> <canvas id="student-canvas-2" class="student-canvas"></canvas> </div>
+            <div class="student-canvas-wrapper"> <label>Học viên 3</label> <canvas id="student-canvas-3" class="student-canvas"></canvas> </div>
+            <div class="student-canvas-wrapper"> <label>Học viên 4</label> <canvas id="student-canvas-4" class="student-canvas"></canvas> </div>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-
     <script>
         window.addEventListener('load', () => {
-            // --- Tham chiếu và Context ---
-            const canvas = document.getElementById('drawing-canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            const container = document.getElementById('whiteboard-container');
+            console.log("Khởi tạo ứng dụng bảng viết...");
+
+            // --- Tham chiếu đến các nút bấm Toolbar ---
             const penBtn = document.getElementById('pen-tool-btn');
             const eraserBtn = document.getElementById('eraser-tool-btn');
             const textBtn = document.getElementById('text-tool-btn');
-            const undoBtn = document.getElementById('undo-btn');
-            const clearBtn = document.getElementById('clear-btn');
+            const undoBtn = document.getElementById('undo-btn'); // Chỉ áp dụng cho teacher-canvas
+            const clearBtn = document.getElementById('clear-btn'); // Chỉ áp dụng cho teacher-canvas
+            const colorBtns = document.querySelectorAll('.color-btn');
 
-            // --- Kết nối Socket.IO ---
-            const socket = io(); // Kết nối tới server đang phục vụ trang này
+            // --- Quản lý các Canvas ---
+            const canvasElements = document.querySelectorAll('canvas');
+            const canvases = {}; // Object để lưu trữ thông tin từng canvas
 
-            socket.on('connect', () => {
-                console.log('✅ Đã kết nối tới Server Socket.IO:', socket.id);
-            });
-            socket.on('disconnect', () => {
-                 console.log('❌ Đã ngắt kết nối khỏi Server Socket.IO');
-            });
-
-
-            // --- Cài đặt kích thước ---
-            canvas.width = 800;
-            canvas.height = 600;
-            container.style.width = `${canvas.width}px`;
-            container.style.height = `${canvas.height}px`;
-
-            // --- Biến trạng thái (giữ nguyên) ---
+            // --- Biến trạng thái chung ---
             let currentMode = 'draw';
-            let isDrawing = false;
-            let lastX = 0;
-            let lastY = 0;
             let currentColor = '#000000';
-            let currentLineWidth = 5;
+            let currentLineWidth = 3;
             let currentFont = '16px sans-serif';
             const eraserColor = '#ffffff';
+            let activeColorButton = null;
 
-            // --- Undo/History (Chỉ hoạt động cục bộ) ---
-            let historyStack = [];
-            const MAX_HISTORY_STATES = 20;
+            // --- Kết nối Socket.IO ---
+            const socket = io();
+            socket.on('connect', () => console.log('✅ Đã kết nối Server Socket.IO:', socket.id));
+            socket.on('disconnect', () => console.log('❌ Đã ngắt kết nối Server Socket.IO'));
 
-            function saveHistoryState() {
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                historyStack.push(imageData);
-                if (historyStack.length > MAX_HISTORY_STATES) {
-                    historyStack.shift();
-                }
-                 updateUndoButtonState();
+            // --- Hàm vẽ lưới nền (田字格) ---
+            function drawTianZiGeGrid(ctx, width, height) {
+                ctx.save(); // Lưu trạng thái context hiện tại
+                ctx.strokeStyle = '#CCCCCC';
+                ctx.lineWidth = 0.5;
+                // Vẽ đường ngang giữa
+                ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
+                // Vẽ đường dọc giữa
+                ctx.beginPath(); ctx.moveTo(width / 2, 0); ctx.lineTo(width / 2, height); ctx.stroke();
+                ctx.restore(); // Khôi phục trạng thái context
             }
 
-            function undoLastAction() { // Chỉ undo local
-                if (historyStack.length <= 1) return;
-                historyStack.pop();
-                const previousImageData = historyStack[historyStack.length - 1];
-                ctx.putImageData(previousImageData, 0, 0);
-                updateUndoButtonState();
-                console.log("Hoàn tác (local)");
-                // KHÔNG emit undo action lên server
-            }
+            // --- Khởi tạo từng Canvas ---
+            canvasElements.forEach(canvasEl => {
+                const canvasId = canvasEl.id;
+                const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
 
-            function updateUndoButtonState() {
-                 undoBtn.disabled = (historyStack.length <= 1);
-            }
-
-             // --- Hàm vẽ lại từ data nhận được (dùng bởi listeners) ---
-             function drawSegmentFromData(data) {
-                 const { mode, x1, y1, x2, y2, color, width } = data;
-                 const tempStrokeStyle = ctx.strokeStyle;
-                 const tempLineWidth = ctx.lineWidth;
-                 const tempLineCap = ctx.lineCap;
-                 const tempLineJoin = ctx.lineJoin;
-
-                 ctx.strokeStyle = color; // Màu từ server
-                 ctx.lineWidth = width;   // Độ dày từ server
-                 ctx.lineCap = 'round';
-                 ctx.lineJoin = 'round';
-
-                 ctx.beginPath();
-                 ctx.moveTo(x1, y1);
-                 ctx.lineTo(x2, y2);
-                 ctx.stroke();
-
-                 // Khôi phục trạng thái context cục bộ
-                 ctx.strokeStyle = tempStrokeStyle;
-                 ctx.lineWidth = tempLineWidth;
-                 ctx.lineCap = tempLineCap;
-                 ctx.lineJoin = tempLineJoin;
-             }
-             function drawTextFromData(data){
-                  const { text, x, y, color, font } = data;
-                  const tempFillStyle = ctx.fillStyle;
-                  const tempFont = ctx.font;
-                  const tempTextAlign = ctx.textAlign;
-                  const tempTextBaseline = ctx.textBaseline;
-
-                  ctx.fillStyle = color;
-                  ctx.font = font;
-                  ctx.textAlign = 'left';
-                  ctx.textBaseline = 'top';
-                  ctx.fillText(text, x, y);
-
-                  ctx.fillStyle = tempFillStyle;
-                  ctx.font = tempFont;
-                  ctx.textAlign = tempTextAlign;
-                  ctx.textBaseline = tempTextBaseline;
-             }
-             function clearCanvasLocal() {
-                  ctx.clearRect(0, 0, canvas.width, canvas.height);
-                  // Reset history khi nhận clear từ server hoặc tự clear
-                  historyStack = [];
-                  saveHistoryState(); // Lưu trạng thái trống mới
-                  updateUndoButtonState();
-             }
-
-
-            // --- Xóa toàn bộ canvas (Local + Emit) ---
-            function clearCanvasAndEmit() {
-                if (confirm("Bạn có chắc muốn xóa toàn bộ nội dung bảng trắng?")) {
-                    clearCanvasLocal(); // Xóa local và reset history
-                    socket.emit('clear_action'); // Thông báo cho server
-                    console.log("Đã xóa hết và gửi tín hiệu.");
-                }
-            }
-
-            // --- Cập nhật UI (giữ nguyên) ---
-            function updateToolUI() { /* ... giữ nguyên code updateToolUI ... */
-                 penBtn.classList.remove('active'); eraserBtn.classList.remove('active'); textBtn.classList.remove('active');
-                 canvas.classList.remove('text-mode', 'eraser-mode');
-                 if (currentMode === 'draw') { penBtn.classList.add('active'); canvas.style.cursor = 'crosshair'; }
-                 else if (currentMode === 'eraser') { eraserBtn.classList.add('active'); canvas.classList.add('eraser-mode'); canvas.style.cursor = 'crosshair'; }
-                 else if (currentMode === 'text') { textBtn.classList.add('active'); canvas.classList.add('text-mode'); canvas.style.cursor = 'text'; }
-            }
-
-             // --- Gắn sự kiện nút (nút Clear gọi hàm mới) ---
-            penBtn.addEventListener('click', () => { currentMode = 'draw'; updateToolUI(); });
-            eraserBtn.addEventListener('click', () => { currentMode = 'eraser'; updateToolUI(); });
-            textBtn.addEventListener('click', () => { currentMode = 'text'; updateToolUI(); });
-            undoBtn.addEventListener('click', undoLastAction); // Undo chỉ local
-            clearBtn.addEventListener('click', clearCanvasAndEmit); // Gọi hàm clear mới
-
-
-            // --- Xử lý nhấn chuột (Local + Emit Start - nếu cần) ---
-            function handleMouseDown(e) {
-                if (currentMode === 'draw' || currentMode === 'eraser') {
-                    isDrawing = true;
-                    [lastX, lastY] = [e.offsetX, e.offsetY];
-                    // Vẽ/Tẩy điểm bắt đầu (Local)
-                    drawDot(e.offsetX, e.offsetY);
-                    // Không cần emit ngay khi nhấn, emit trong lúc di chuột (draw)
-                } else if (currentMode === 'text') {
-                    placeText(e); // Hàm này sẽ emit sau khi có text
-                }
-            }
-             // --- Vẽ điểm (Local) ---
-            function drawDot(x, y) { /* ... giữ nguyên code drawDot ... */
-                 ctx.beginPath(); ctx.fillStyle = (currentMode === 'eraser') ? eraserColor : currentColor;
-                 ctx.arc(x, y, currentLineWidth / 2, 0, Math.PI * 2); ctx.fill();
-             }
-
-            // --- Xử lý vẽ/tẩy (Local + Emit) ---
-            function draw(e) {
-                if (!isDrawing) return;
-                const x2 = e.offsetX;
-                const y2 = e.offsetY;
-                const drawData = { // Chuẩn bị data để gửi
-                    mode: currentMode,
-                    x1: lastX,
-                    y1: lastY,
-                    x2: x2,
-                    y2: y2,
-                    color: (currentMode === 'eraser') ? eraserColor : currentColor,
-                    width: currentLineWidth
-                };
-
-                // 1. Vẽ local trước
-                drawSegmentFromData(drawData);
-
-                // 2. Gửi dữ liệu lên server
-                socket.emit('draw_action', drawData);
-
-                // Cập nhật vị trí cuối
-                [lastX, lastY] = [x2, y2];
-            }
-
-            // --- Xử lý thả chuột (Chỉ local) ---
-            function stopDrawing() {
-                 if (isDrawing) {
-                      isDrawing = false;
-                      // Lưu history local SAU KHI vẽ/tẩy xong một nét
-                      // Không cần lưu khi nhận data từ server vẽ
-                      saveHistoryState();
-                 }
-            }
-
-            // --- Xử lý đặt chữ (Local + Emit) ---
-            function placeText(e) {
-                const text = prompt("Nhập văn bản:");
-                if (text) {
-                     const textData = {
-                         text: text,
-                         x: e.offsetX,
-                         y: e.offsetY,
-                         color: currentColor,
-                         font: currentFont
-                     };
-                     // 1. Vẽ local
-                     drawTextFromData(textData);
-                     // 2. Lưu history local
-                     saveHistoryState();
-                     // 3. Gửi lên server
-                     socket.emit('text_action', textData);
-                     console.log(`Đã thêm chữ và gửi: "${text}"`);
+                // Đặt kích thước dựa trên ID hoặc class
+                let canvasWidth, canvasHeight;
+                if (canvasId === 'teacher-canvas') {
+                    canvasWidth = 600; canvasHeight = 450; // Cố định kích thước ô GV
+                } else if (canvasEl.classList.contains('student-canvas')) {
+                    const studentSize = 200; // Cố định kích thước ô HV
+                    canvasWidth = studentSize; canvasHeight = studentSize;
                 } else {
-                    console.log("Đã hủy thêm chữ.");
+                     canvasWidth = 100; canvasHeight = 100; // Kích thước mặc định nếu không xác định
                 }
-            }
+                 canvasEl.width = canvasWidth;
+                 canvasEl.height = canvasHeight;
 
-            // --- Gắn sự kiện chuột (giữ nguyên) ---
-            canvas.addEventListener('mousedown', handleMouseDown);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('mouseout', stopDrawing);
-
-            // --- LẮNG NGHE SỰ KIỆN TỪ SERVER ---
-            socket.on('draw_action', (data) => {
-                console.log('<< Nhận draw_action');
-                drawSegmentFromData(data); // Vẽ lại nét vẽ từ người khác
-                // Không lưu history khi nhận từ server để tránh lặp lại/sai thứ tự undo
+                // Lưu trữ thông tin canvas
+                canvases[canvasId] = {
+                    element: canvasEl, ctx: ctx, isDrawing: false,
+                    lastX: 0, lastY: 0, historyStack: []
+                };
+                // Vẽ lưới nền ban đầu
+                drawGrid(canvasId);
+                // Lưu trạng thái ban đầu
+                saveHistoryState(canvasId);
+                // Gắn các bộ lắng nghe sự kiện
+                canvasEl.addEventListener('mousedown', handleInteractionStart);
+                canvasEl.addEventListener('mousemove', handleInteractionMove);
+                canvasEl.addEventListener('mouseup', handleInteractionEnd);
+                canvasEl.addEventListener('mouseout', handleInteractionEnd);
+                canvasEl.addEventListener('touchstart', handleInteractionStart, { passive: false });
+                canvasEl.addEventListener('touchmove', handleInteractionMove, { passive: false });
+                canvasEl.addEventListener('touchend', handleInteractionEnd);
+                canvasEl.addEventListener('touchcancel', handleInteractionEnd);
+                console.log(`Đã khởi tạo canvas: ${canvasId} (${canvasEl.width}x${canvasEl.height})`);
             });
 
-            socket.on('text_action', (data) => {
-                console.log('<< Nhận text_action');
-                drawTextFromData(data); // Vẽ lại chữ từ người khác
-                // Không lưu history
-            });
+            // --- Hàm vẽ lại lưới ---
+             function drawGrid(canvasId) { if (canvases[canvasId]) { const { ctx, element } = canvases[canvasId]; drawTianZiGeGrid(ctx, element.width, element.height); } }
 
-            socket.on('clear_action', () => {
-                console.log('<< Nhận clear_action');
-                clearCanvasLocal(); // Xóa và reset history local
-            });
+            // --- Quản lý History (cần canvasId) ---
+            const MAX_HISTORY_STATES = 20;
+            function saveHistoryState(canvasId) { if (!canvases[canvasId]) return; const { ctx, element, historyStack } = canvases[canvasId]; const imageData = ctx.getImageData(0, 0, element.width, element.height); historyStack.push(imageData); if (historyStack.length > MAX_HISTORY_STATES) { historyStack.shift(); } if (canvasId === 'teacher-canvas') updateUndoButtonState(); }
+            function undoLastAction() { const canvasId = 'teacher-canvas'; if (!canvases[canvasId]) return; const { historyStack } = canvases[canvasId]; if (historyStack.length <= 1) return; historyStack.pop(); redrawLastState(canvasId); updateUndoButtonState(); console.log(`Hoàn tác trên ${canvasId}`); }
+            function redrawLastState(canvasId) { if (!canvases[canvasId]) return; const { ctx, historyStack, element } = canvases[canvasId]; ctx.clearRect(0, 0, element.width, element.height); drawGrid(canvasId); if (historyStack.length > 0) { const lastState = historyStack[historyStack.length - 1]; ctx.putImageData(lastState, 0, 0); } drawGrid(canvasId); } // Vẽ lại lưới sau khi putImageData
+            function updateUndoButtonState() { if (canvases['teacher-canvas']) undoBtn.disabled = (canvases['teacher-canvas'].historyStack.length <= 1); else undoBtn.disabled = true; }
 
+            // --- Xóa Canvas ---
+             function clearCanvasLocal(canvasId) { if (!canvases[canvasId]) return; const { ctx, element } = canvases[canvasId]; ctx.clearRect(0, 0, element.width, element.height); drawGrid(canvasId); canvases[canvasId].historyStack = []; saveHistoryState(canvasId); if (canvasId === 'teacher-canvas') updateUndoButtonState(); }
+             function clearTeacherCanvasAndEmit() { const canvasId = 'teacher-canvas'; if (confirm(`Bạn có chắc muốn xóa nội dung ô ${canvasId}? Hành động này cũng sẽ xóa tất cả các ô khác.`)) { socket.emit('clear_action'); console.log("Yêu cầu xóa tất cả."); }}
 
-            // --- Khởi tạo ---
+            // --- Lấy tọa độ chuẩn hóa (Cần e.target) ---
+            function getCoordinates(e) { let x, y; const targetCanvas = e.target; if (!targetCanvas || typeof targetCanvas.getBoundingClientRect !== 'function') { console.error("Lỗi lấy target canvas"); return { x: 0, y: 0 }; } const rect = targetCanvas.getBoundingClientRect(); if (e.touches && e.touches.length > 0) { x = e.touches[0].clientX - rect.left; y = e.touches[0].clientY - rect.top; } else if (e.changedTouches && e.changedTouches.length > 0) { x = e.changedTouches[0].clientX - rect.left; y = e.changedTouches[0].clientY - rect.top; } else { x = e.clientX - rect.left; y = e.clientY - rect.top; } return { x, y }; }
+
+             // --- Vẽ/Tẩy/Chữ từ dữ liệu (cần ctx) ---
+             function drawSegmentOnCtx(ctx, data) { const { x1, y1, x2, y2, color, width } = data; const T = ctx.getTransform(); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
+             function drawTextOnCtx(ctx, data) { const { text, x, y, color, font } = data; const T = ctx.getTransform(); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = color; ctx.font = font; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(text, x, y); ctx.restore(); }
+
+            // --- Cập nhật UI Toolbar ---
+             function updateToolUI() { penBtn.classList.remove('active'); eraserBtn.classList.remove('active'); textBtn.classList.remove('active'); if (currentMode === 'draw') penBtn.classList.add('active'); else if (currentMode === 'eraser') eraserBtn.classList.add('active'); else if (currentMode === 'text') textBtn.classList.add('active'); colorBtns.forEach(btn => btn.classList.remove('active-color')); if (activeColorButton) activeColorButton.classList.add('active-color'); }
+
+            // --- Gắn sự kiện nút Toolbar ---
+            penBtn.addEventListener('click', () => { currentMode = 'draw'; updateToolUI(); }); eraserBtn.addEventListener('click', () => { currentMode = 'eraser'; updateToolUI(); }); textBtn.addEventListener('click', () => { currentMode = 'text'; updateToolUI(); }); undoBtn.addEventListener('click', undoLastAction); clearBtn.addEventListener('click', clearTeacherCanvasAndEmit);
+            colorBtns.forEach(btn => { btn.addEventListener('click', () => { currentColor = btn.dataset.color; activeColorButton = btn; currentMode = 'draw'; updateToolUI(); }); });
+
+            // --- Xử lý tương tác (Start, Move, End) ---
+            function handleInteractionStart(e) { if (e.type === 'touchstart') e.preventDefault(); const targetCanvas = e.target; const canvasId = targetCanvas.id; if (!canvases[canvasId]) return; const coords = getCoordinates(e); const state = canvases[canvasId]; if (currentMode === 'draw' || currentMode === 'eraser') { state.isDrawing = true; state.lastX = coords.x; state.lastY = coords.y; drawDotOnCtx(state.ctx, state.lastX, state.lastY); } else if (currentMode === 'text') { placeText(coords, canvasId); } }
+            function drawDotOnCtx(ctx, x, y) { const T=ctx.getTransform(); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.beginPath(); ctx.fillStyle = (currentMode === 'eraser') ? eraserColor : currentColor; ctx.arc(x, y, currentLineWidth / 2, 0, Math.PI * 2); ctx.fill(); ctx.restore();}
+            function handleInteractionMove(e) { if (e.type === 'touchmove') e.preventDefault(); const targetCanvas = e.target; const canvasId = targetCanvas.id; if (!canvases[canvasId]) return; const state = canvases[canvasId]; if (!state.isDrawing) return; const coords = getCoordinates(e); const x2 = coords.x; const y2 = coords.y; const drawData = { canvasId: canvasId, mode: currentMode, x1: state.lastX, y1: state.lastY, x2: x2, y2: y2, color: (currentMode === 'eraser') ? eraserColor : currentColor, width: currentLineWidth }; drawSegmentOnCtx(state.ctx, drawData); socket.emit('draw_action', drawData); state.lastX = x2; state.lastY = y2;}
+            function handleInteractionEnd(e) { const targetCanvas = e.target; const canvasId = targetCanvas.id; if (!canvases[canvasId]) return; const state = canvases[canvasId]; if (state.isDrawing) { state.isDrawing = false; saveHistoryState(canvasId); }}
+            function placeText(coords, canvasId) { if (!canvases[canvasId]) return; const { ctx } = canvases[canvasId]; const text = prompt("Nhập văn bản:"); if (text) { const textData = { canvasId: canvasId, text: text, x: coords.x, y: coords.y, color: currentColor, font: currentFont }; drawTextOnCtx(ctx, textData); saveHistoryState(canvasId); socket.emit('text_action', textData); console.log(`Đã thêm chữ vào ${canvasId} và gửi`); } else { console.log("Đã hủy thêm chữ."); }}
+
+            // --- Gắn các Event Listeners (Cho tất cả canvas) ---
+            // (Đã gắn trong vòng lặp khởi tạo canvas)
+
+             // --- LẮNG NGHE SỰ KIỆN TỪ SERVER ---
+             socket.on('draw_action', (data) => { console.log(`<< Nhận draw_action cho ${data.canvasId}`); const targetCanvasInfo = canvases[data.canvasId]; if (targetCanvasInfo) drawSegmentOnCtx(targetCanvasInfo.ctx, data); else console.warn(`Không tìm thấy canvas ID: ${data.canvasId}`); });
+             socket.on('text_action', (data) => { console.log(`<< Nhận text_action cho ${data.canvasId}`); const targetCanvasInfo = canvases[data.canvasId]; if (targetCanvasInfo) drawTextOnCtx(targetCanvasInfo.ctx, data); else console.warn(`Không tìm thấy canvas ID: ${data.canvasId}`); });
+             socket.on('clear_action', () => { console.log('<< Nhận clear_action (xóa tất cả)'); Object.keys(canvases).forEach(id => clearCanvasLocal(id)); });
+
+            // --- Khởi tạo cuối cùng ---
+            activeColorButton = document.querySelector('.color-btn[data-color="#000000"]');
             updateToolUI();
-            saveHistoryState(); // Lưu trạng thái ban đầu
-            console.log("Bảng vẽ Realtime Client đã sẵn sàng!");
+            updateUndoButtonState();
+            console.log("Ứng dụng Luyện Viết Chữ Hán (Multi-Canvas) đã sẵn sàng!");
+
         });
+    // ==================== JAVASCRIPT KẾT THÚC ====================
     </script>
-    </body>
+
+</body>
 </html>
